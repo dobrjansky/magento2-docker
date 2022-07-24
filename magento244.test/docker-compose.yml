@@ -1,0 +1,83 @@
+version: "3"
+
+services:
+  web:
+    image: nginx:latest #https://hub.docker.com/_/nginx
+    working_dir: /magento
+    volumes:
+      - ./.docker/nginx:/etc/nginx/ #local:container
+      - ./.docker/nginx/logs:/var/log/nginx/ #local:container
+      - ./magento:/magento #local:container
+    ports:
+      - "80:80" #local:container
+    environment:
+      - SERVER_NAME=magento.test
+      - NGINX_PORT=80
+    extra_hosts:
+      - "magento-sample.test:127.0.0.1"
+    networks:
+      magento-network:
+        ipv4_address: 10.5.0.10
+  php:
+    #image: php:7.1-fpm
+    build:
+      context: ./.docker/php
+      dockerfile: Dockerfile
+    working_dir: /magento
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./magento:/magento
+      - ./.docker/php/.composer:/root/.composer
+      - ./.docker/php/usr/local/etc/php/php.ini:/usr/local/etc/php/php.ini
+      - ./.docker/php/usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini:/usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+    user: "1000:1000" #uset a
+    networks:
+      magento-network:
+        ipv4_address: 10.5.0.11
+
+  db:
+    image: mysql:8
+    command: --default-authentication-plugin=mysql_native_password
+    #restart: always
+    ports:
+      - "3306:3306" #local:container
+    volumes:
+      - ./magento:/magento
+      - ./.docker/mysql/lib:/var/lib/mysql
+      - ./.docker/mysql/conf.d:/etc/mysql/conf.d
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: magento
+      MYSQL_USER: magento
+      MYSQL_PASSWORD: magento
+    networks:
+      magento-network:
+        ipv4_address: 10.5.0.12
+
+  elastic:
+    image: elasticsearch:7.16.3
+    container_name: elastic
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - bootstrap.memory_lock=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - ./.docker/elasticsearch/data:/usr/share/elasticsearch/data
+    ports:
+      - 9200:9200
+    networks:
+      magento-network:
+        ipv4_address: 10.5.0.14
+
+networks:
+  magento-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.5.0.0/16
+          gateway: 10.5.0.1
