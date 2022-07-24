@@ -7,6 +7,9 @@ RUN apt-get install -y --no-install-recommends \
     libpng++-dev libwebp-dev libjpeg-dev  \
     libjpeg62-turbo-dev libpng-dev unzip libzip-dev curl
 
+RUN groupadd -g 1000 a
+RUN useradd -m -d /home/a -u 1000 -g 1000 a
+
 RUN docker-php-ext-install opcache
 RUN pecl install xdebug && docker-php-ext-enable xdebug
 RUN docker-php-ext-install zip bcmath intl pdo_mysql soap sockets sodium xsl opcache
